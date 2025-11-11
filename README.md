@@ -35,8 +35,9 @@ The app defaults to `http://localhost:8501`. Use the sidebar to navigate between
 - **Planned:** Calibration overlays for user batches, applicability-domain visualisations, PDF/CSV export pipeline.
 - **Contribution guide:** Fork the repo, branch from `main`, follow conventional commits, and open a pull request with screenshots for UI updates.
 
-## License
-Specify your preferred license (e.g., MIT, Apache-2.0) before publishing the repository publicly.
-*** End Patch
+## Contact
+Questions, bug reports, or collaboration requests: **Dr. Sivanesan Dakshanamurthy** — sd233@georgetown.edu
+---
+
 
 
