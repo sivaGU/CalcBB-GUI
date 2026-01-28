@@ -48,181 +48,241 @@ st.set_page_config(
 # Inject custom CSS for color palette
 st.markdown("""
 <style>
-    /* Color Palette: Vibrant red gradient - more red, less brown */
+    /* Color Palette: Light red theme */
     :root {
-        --primary-color: #C41E3A;
-        --primary-dark: #B91C2C;
-        --primary-darker: #A01A1F;
-        --accent-1: #8B1A1A;
-        --accent-2: #7A1515;
-        --accent-3: #6B1111;
-        --accent-4: #5C0D0D;
-        --accent-5: #4D0808;
-        --accent-6: #3E0404;
-        --black: #2A0000;
+        --primary-color: #FF6B6B;
+        --primary-light: #FF8E8E;
+        --primary-lighter: #FFB3B3;
+        --accent-1: #FF9999;
+        --accent-2: #FFB3B3;
+        --accent-3: #FFCCCC;
+        --accent-4: #FFE0E0;
+        --accent-5: #FFE5E5;
+        --accent-6: #FFF0F0;
+        --very-light-red: #FFF5F5;
     }
     
-    /* Main background */
+    /* Page background - very light red */
+    .stApp {
+        background-color: #FFF5F5;
+    }
+    
+    /* Main background with margins */
     .main .block-container {
         background-color: #ffffff;
+        padding: 2rem 3rem;
+        margin: 2rem auto;
+        max-width: 1400px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(255, 107, 107, 0.1);
     }
     
-    /* Sidebar */
+    /* Sidebar - light red */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #2A0000 0%, #1A0000 100%);
-        color: #ffffff;
+        background: linear-gradient(180deg, #FFE5E5 0%, #FFD5D5 100%);
+        color: #333333;
     }
     
     [data-testid="stSidebar"] .css-1d391kg {
-        background-color: #3E0404;
+        background-color: #FFE0E0;
     }
     
     /* Primary buttons */
     .stButton > button {
-        background: linear-gradient(135deg, #C41E3A 0%, #B91C2C 100%);
+        background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
         color: white;
         border: none;
         border-radius: 6px;
         font-weight: 600;
-        box-shadow: 0 2px 4px rgba(196, 30, 58, 0.3);
+        box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
         transition: all 0.3s ease;
     }
     
     .stButton > button:hover {
-        background: linear-gradient(135deg, #B91C2C 0%, #A01A1F 100%);
-        box-shadow: 0 4px 8px rgba(196, 30, 58, 0.4);
+        background: linear-gradient(135deg, #FF8E8E 0%, #FF9999 100%);
+        box-shadow: 0 4px 8px rgba(255, 107, 107, 0.4);
         transform: translateY(-1px);
     }
     
     .stButton > button:focus {
-        background: linear-gradient(135deg, #A01A1F 0%, #8B1A1A 100%);
-        box-shadow: 0 0 0 0.3rem rgba(196, 30, 58, 0.3);
+        background: linear-gradient(135deg, #FF9999 0%, #FFB3B3 100%);
+        box-shadow: 0 0 0 0.3rem rgba(255, 107, 107, 0.3);
     }
     
     /* Secondary buttons */
     .stDownloadButton > button {
-        background: linear-gradient(135deg, #B91C2C 0%, #A01A1F 100%);
+        background: linear-gradient(135deg, #FF8E8E 0%, #FF9999 100%);
         color: white;
         border-radius: 6px;
         font-weight: 500;
     }
     
     .stDownloadButton > button:hover {
-        background: linear-gradient(135deg, #A01A1F 0%, #8B1A1A 100%);
+        background: linear-gradient(135deg, #FF9999 0%, #FFB3B3 100%);
     }
     
     /* Headers */
     h1, h2, h3 {
-        color: #C41E3A;
+        color: #FF6B6B;
         font-weight: 700;
     }
     
     /* Links */
     a {
-        color: #C41E3A;
+        color: #FF6B6B;
         text-decoration: none;
     }
     
     a:hover {
-        color: #B91C2C;
+        color: #FF8E8E;
         text-decoration: underline;
     }
     
     /* Metrics */
     [data-testid="stMetricValue"] {
-        color: #C41E3A;
+        color: #FF6B6B;
         font-weight: 600;
     }
     
     /* Success boxes */
     .stSuccess {
-        background: linear-gradient(90deg, #2A0000 0%, #3E0404 100%);
-        border-left: 4px solid #C41E3A;
-        color: #ffffff;
+        background: linear-gradient(90deg, #FFE5E5 0%, #FFD5D5 100%);
+        border-left: 4px solid #FF6B6B;
+        color: #333333;
         border-radius: 4px;
     }
     
     /* Info boxes */
     .stInfo {
-        background: linear-gradient(90deg, #3E0404 0%, #4D0808 100%);
-        border-left: 4px solid #C41E3A;
-        color: #ffffff;
+        background: linear-gradient(90deg, #FFE5E5 0%, #FFD5D5 100%);
+        border-left: 4px solid #FF6B6B;
+        color: #333333;
         border-radius: 4px;
     }
     
     /* Warning boxes */
     .stWarning {
-        background: linear-gradient(90deg, #4D0808 0%, #5C0D0D 100%);
-        border-left: 4px solid #C41E3A;
-        color: #ffffff;
+        background: linear-gradient(90deg, #FFE0E0 0%, #FFD5D5 100%);
+        border-left: 4px solid #FF8E8E;
+        color: #333333;
         border-radius: 4px;
     }
     
     /* Error boxes */
     .stError {
-        background: linear-gradient(90deg, #5C0D0D 0%, #6B1111 100%);
-        border-left: 4px solid #C41E3A;
-        color: #ffffff;
+        background: linear-gradient(90deg, #FFD5D5 0%, #FFCCCC 100%);
+        border-left: 4px solid #FF6B6B;
+        color: #333333;
         border-radius: 4px;
     }
     
     /* Radio buttons */
     .stRadio > label {
-        color: #C41E3A;
+        color: #FF6B6B;
         font-weight: 500;
     }
     
     /* Selectbox */
     .stSelectbox > label {
-        color: #C41E3A;
+        color: #FF6B6B;
         font-weight: 500;
     }
     
     /* Text input labels */
     .stTextInput > label {
-        color: #C41E3A;
+        color: #FF6B6B;
         font-weight: 500;
     }
     
     /* Slider */
     .stSlider > label {
-        color: #C41E3A;
+        color: #FF6B6B;
         font-weight: 500;
     }
     
     /* File uploader */
     .stFileUploader > label {
-        color: #C41E3A;
+        color: #FF6B6B;
         font-weight: 500;
     }
     
     /* Expander */
     .streamlit-expanderHeader {
-        background: linear-gradient(90deg, #2A0000 0%, #3E0404 100%);
-        color: #ffffff;
+        background: linear-gradient(90deg, #FFE5E5 0%, #FFD5D5 100%);
+        color: #333333;
         border-radius: 4px;
         font-weight: 500;
     }
     
     .streamlit-expanderHeader:hover {
-        background: linear-gradient(90deg, #3E0404 0%, #4D0808 100%);
+        background: linear-gradient(90deg, #FFD5D5 0%, #FFCCCC 100%);
     }
     
     /* Dataframes */
     .stDataFrame {
-        border: 2px solid #C41E3A;
+        border: 2px solid #FF6B6B;
         border-radius: 4px;
     }
     
     /* Dividers */
     hr {
-        border-color: #C41E3A;
+        border-color: #FF6B6B;
         border-width: 2px;
     }
     
     /* Slider track */
     .stSlider .stSlider > div > div {
-        background-color: #C41E3A;
+        background-color: #FF6B6B;
+    }
+    
+    /* Navigation buttons - cleaner styling */
+    [data-testid="stSidebar"] .stButton {
+        margin-bottom: 0.5rem;
+    }
+    
+    [data-testid="stSidebar"] .stButton > button {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Sidebar headers */
+    [data-testid="stSidebar"] h3 {
+        color: #FF6B6B;
+        font-weight: 600;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Sidebar text */
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] li {
+        color: #333333;
+    }
+    
+    /* Sidebar success/info boxes */
+    [data-testid="stSidebar"] .stSuccess {
+        background: linear-gradient(90deg, #FFE5E5 0%, #FFD5D5 100%);
+        border-left: 4px solid #FF6B6B;
+        color: #333333;
+    }
+    
+    [data-testid="stSidebar"] .stInfo {
+        background: linear-gradient(90deg, #FFE5E5 0%, #FFD5D5 100%);
+        border-left: 4px solid #FF6B6B;
+        color: #333333;
+    }
+    
+    /* Sidebar spacing */
+    [data-testid="stSidebar"] hr {
+        margin: 1rem 0;
+        border-color: rgba(255, 107, 107, 0.3);
+    }
+    
+    /* Ensure main content has white background for readability */
+    .main .block-container > div {
+        background-color: #ffffff;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -524,16 +584,16 @@ def render_home_page():
         "Prototype interface for the sparse-label multi-task ensemble described in the BBB manuscript."
     )
 
-    st.sidebar.header("Project Snapshot")
+    st.sidebar.markdown("### Project Snapshot")
     st.sidebar.markdown(
         """
         - **Model focus:** Calibrated BBB permeability classification  
         - **Architecture:** Masked multi-task ensemble blended with a single-task baseline  
         - **External validation:** BBBP and out-of-source (OOS) panels  
-        - **Status:** Home, documentation, and ligand prediction pages available
+        - **Status:** All pages available
         """
     )
-    st.sidebar.success("Interactive ligand screening tab now available!")
+    st.sidebar.success("Interactive ligand screening available!")
 
     st.markdown(
         """
@@ -1007,19 +1067,35 @@ def render_ligand_prediction_page():
 
 def main():
     """Main app entry point with navigation."""
-    # Sidebar navigation
-    page = st.sidebar.selectbox(
-        "Navigate",
-        ["Home", "Documentation", "Ligand Prediction"],
-        key="page_selector"
-    )
-
+    # Initialize session state for page navigation
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "Home"
+    
+    # Sidebar navigation with buttons
+    st.sidebar.markdown("### Navigation")
+    st.sidebar.markdown("")
+    
+    # Navigation buttons - use container width for full-width buttons
+    if st.sidebar.button("🏠 Home", use_container_width=True, 
+                         key="nav_home"):
+        st.session_state.current_page = "Home"
+    
+    if st.sidebar.button("📚 Documentation", use_container_width=True,
+                         key="nav_docs"):
+        st.session_state.current_page = "Documentation"
+    
+    if st.sidebar.button("🧪 Ligand Prediction", use_container_width=True,
+                         key="nav_prediction"):
+        st.session_state.current_page = "Ligand Prediction"
+    
+    st.sidebar.markdown("---")
+    
     # Render selected page
-    if page == "Home":
+    if st.session_state.current_page == "Home":
         render_home_page()
-    elif page == "Documentation":
+    elif st.session_state.current_page == "Documentation":
         render_documentation_page()
-    elif page == "Ligand Prediction":
+    elif st.session_state.current_page == "Ligand Prediction":
         render_ligand_prediction_page()
 
 
