@@ -137,6 +137,34 @@ def get_mol_with_3d(smiles: str, file_content: Optional[bytes] = None, file_exte
     return mol
 
 
+def get_mol_for_drawing(smiles: str, file_content: Optional[bytes] = None, file_extension: Optional[str] = None):
+    """
+    Get an RDKit mol for 2D structure drawing (no 3D embedding required).
+    Uses uploaded file if present, else SMILES. Returns Chem.Mol or None.
+    """
+    mol = None
+    if file_content is not None and file_extension is not None:
+        ext = file_extension.lower()
+        try:
+            text = file_content.decode("utf-8")
+            if ext == ".sdf":
+                from io import StringIO
+                supplier = Chem.SDMolSupplier(StringIO(text))
+                mols = [m for m in supplier if m is not None]
+                mol = mols[0] if mols else None
+            elif ext == ".mol":
+                mol = Chem.MolFromMolBlock(text)
+            elif ext in (".pdb", ".pdbqt"):
+                mol = Chem.MolFromPDBBlock(text)
+            elif ext == ".mol2":
+                mol = Chem.MolFromMol2Block(text)
+        except Exception:
+            mol = None
+    if mol is None and smiles:
+        mol = Chem.MolFromSmiles(smiles)
+    return mol
+
+
 def render_ligand_structure(mol, size: int = 400) -> Optional[bytes]:
     """
     Draw the ligand as a 2D chemical structure (atoms and bonds) using RDKit.
@@ -146,6 +174,11 @@ def render_ligand_structure(mol, size: int = 400) -> Optional[bytes]:
         return None
     try:
         from rdkit.Chem import Draw
+        # Ensure 2D coordinates exist for drawing (required for proper layout)
+        try:
+            AllChem.Compute2DCoords(mol)
+        except Exception:
+            pass
         img = Draw.MolToImage(mol, size=(size, size))
         buf = io.BytesIO()
         img.save(buf, format="PNG")
@@ -674,7 +707,7 @@ def render_mechbbb_prediction_page():
                     st.subheader("Ligand Structure")
                     file_content = st.session_state.get("structure_file_content")
                     file_ext = st.session_state.get("structure_file_ext")
-                    mol = get_mol_with_3d(
+                    mol = get_mol_for_drawing(
                         result.canonical_smiles,
                         file_content=file_content,
                         file_extension=file_ext,
