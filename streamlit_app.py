@@ -19,8 +19,17 @@ HANDOFF_DIR = PROJECT_ROOT
 import streamlit as st
 import pandas as pd
 from rdkit import Chem
+from rdkit.Chem import AllChem
 
 from src.mechbbb.predict import predict_single, predict_batch, load_predictor
+
+# Optional 3D viewer (stmol/py3Dmol)
+try:
+    import py3Dmol
+    from stmol import showmol
+    HAS_3D_VIEWER = True
+except ImportError:
+    HAS_3D_VIEWER = False
 
 
 def extract_smiles_from_file(file_content: bytes, file_extension: str) -> Optional[str]:
@@ -85,6 +94,73 @@ def extract_smiles_from_file(file_content: bytes, file_extension: str) -> Option
     except Exception:
         pass
     return None
+
+
+def get_3d_structure_for_viewer(smiles: str, file_content: Optional[bytes] = None, file_extension: Optional[str] = None) -> Optional[str]:
+    """
+    Get a 3D structure as PDB string for visualization.
+    If file_content is provided and contains 3D coordinates (SDF, MOL, PDB, etc.), use it.
+    Otherwise generate 3D from SMILES using RDKit (EmbedMolecule + MMFF).
+    Returns PDB block string or None if generation fails.
+    """
+    mol = None
+    if file_content is not None and file_extension is not None:
+        ext = file_extension.lower()
+        try:
+            text = file_content.decode("utf-8")
+            if ext == ".sdf":
+                from io import StringIO
+                supplier = Chem.SDMolSupplier(StringIO(text))
+                mols = [m for m in supplier if m is not None]
+                for m in mols:
+                    if m.GetNumConformers() > 0:
+                        mol = m
+                        break
+                else:
+                    mol = mols[0] if mols else None
+            elif ext == ".mol":
+                mol = Chem.MolFromMolBlock(text)
+            elif ext in (".pdb", ".pdbqt"):
+                mol = Chem.MolFromPDBBlock(text)
+            elif ext == ".mol2":
+                mol = Chem.MolFromMol2Block(text)
+            if mol is not None and mol.GetNumConformers() == 0:
+                # No 3D coords; get SMILES and fall through to embedding
+                smiles = Chem.MolToSmiles(mol, canonical=True)
+                mol = None
+        except Exception:
+            mol = None
+    if mol is None and smiles:
+        mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    # Ensure we have 3D coordinates
+    if mol.GetNumConformers() == 0:
+        try:
+            AllChem.EmbedMolecule(mol, AllChem.ETKDG())
+            AllChem.MMFFOptimizeMolecule(mol)
+        except Exception:
+            try:
+                AllChem.EmbedMolecule(mol, randomSeed=42)
+            except Exception:
+                return None
+    try:
+        return Chem.MolToPDBBlock(mol)
+    except Exception:
+        return None
+
+
+def render_ligand_3d(pdb_block: str, height: int = 500, width: int = 600) -> None:
+    """Render an interactive 3D view of the ligand using py3Dmol and stmol."""
+    if not HAS_3D_VIEWER or not pdb_block:
+        return
+    view = py3Dmol.view(width=width, height=height)
+    view.addModel(pdb_block, "pdb")
+    view.setStyle({"stick": {"colorscheme": "lightgreyCarbon"}, "sphere": {"scale": 0.3}})
+    view.setBackgroundColor("white")
+    view.zoomTo()
+    showmol(view, height=height, width=width)
+
 
 # ============================================================================
 # CONFIGURATION
@@ -448,13 +524,23 @@ def render_documentation_page():
 
     st.markdown(
         """
+        ## Uncertainty Quantification
+        The model provides uncertainty estimates for each prediction:
+        - **Standard Error:** Calculated from the variance across the 5-model ensemble (std_dev / √5).
+        - **95% Confidence Interval:** P(BBB+) ± 2×SE, providing a range within which the true probability likely falls.
+        - **Display:** Single predictions show the error range and confidence interval. Batch CSV outputs include columns for standard error, error percentage, and CI bounds.
+        """
+    )
+
+    st.markdown(
+        """
         ## CLI usage
         From the project folder:
         ```bash
         python -m src.mechbbb.cli --smiles "CCO" "c1ccccc1" --output out.csv
         python -m src.mechbbb.cli --input example_inputs.csv --output out.csv
         ```
-        Output columns: smiles, canonical_smiles, prob_BBB+, BBB_class, p_efflux, p_influx, p_pampa, threshold, error.
+        Output columns: smiles, canonical_smiles, prob_BBB+, prob_std_error, prob_std_error_pct, prob_CI_lower, prob_CI_upper, BBB_class, p_efflux, p_influx, p_pampa, threshold, error.
         """
     )
 
@@ -522,11 +608,18 @@ def render_mechbbb_prediction_page():
             extracted = extract_smiles_from_file(content, ext)
             if extracted:
                 smiles_to_use = extracted
+                # Store for 3D viewer (use uploaded structure if it has 3D coords)
+                st.session_state.structure_file_content = content
+                st.session_state.structure_file_ext = ext
                 st.success(f"Extracted SMILES from {structure_file.name}")
             else:
+                st.session_state.structure_file_content = None
+                st.session_state.structure_file_ext = None
                 st.error(f"Could not extract SMILES from {ext.upper()} file. Try SMILES input instead.")
         elif smiles_input and smiles_input.strip():
             smiles_to_use = smiles_input.strip()
+            st.session_state.structure_file_content = None
+            st.session_state.structure_file_ext = None
         if st.button("Predict", type="primary", key="btn_single"):
             if smiles_to_use:
                 result = predict_single(
@@ -538,11 +631,42 @@ def render_mechbbb_prediction_page():
                     st.success("Valid SMILES")
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("P(BBB+)", f"{result.prob:.4f}")
+                        # Display P(BBB+) with error range
+                        if result.prob_std_error is not None:
+                            error_pct = result.prob_std_error * 100
+                            # Use 2*SE for ~95% confidence interval
+                            ci_lower = max(0.0, result.prob - 2 * result.prob_std_error)
+                            ci_upper = min(1.0, result.prob + 2 * result.prob_std_error)
+                            st.metric(
+                                "P(BBB+)", 
+                                f"{result.prob:.4f}",
+                                help=f"95% CI: [{ci_lower:.4f}, {ci_upper:.4f}]"
+                            )
+                            st.caption(f"± {error_pct:.2f}% (std error)")
+                        else:
+                            st.metric("P(BBB+)", f"{result.prob:.4f}")
                     with col2:
                         st.metric("Prediction", result.bbb_class)
                     with col3:
                         st.metric("Threshold", f"{threshold:.2f}")
+
+                    # Display confidence interval details
+                    if result.prob_std_error is not None:
+                        st.markdown("#### Uncertainty Analysis")
+                        err_col1, err_col2, err_col3 = st.columns(3)
+                        with err_col1:
+                            error_pct = result.prob_std_error * 100
+                            st.metric("Standard Error", f"± {error_pct:.2f}%")
+                        with err_col2:
+                            ci_lower = max(0.0, result.prob - 2 * result.prob_std_error)
+                            st.metric("95% CI Lower", f"{ci_lower:.4f}")
+                        with err_col3:
+                            ci_upper = min(1.0, result.prob + 2 * result.prob_std_error)
+                            st.metric("95% CI Upper", f"{ci_upper:.4f}")
+                        st.info(
+                            f"**Prediction Range:** P(BBB+) = {result.prob:.4f} ± {result.prob_std_error:.4f} "
+                            f"(95% confidence interval: [{ci_lower:.4f}, {ci_upper:.4f}])"
+                        )
 
                     st.subheader("Mechanistic probabilities")
                     mcol1, mcol2, mcol3 = st.columns(3)
@@ -552,6 +676,23 @@ def render_mechbbb_prediction_page():
                         st.metric("p_influx", f"{result.p_influx:.4f}")
                     with mcol3:
                         st.metric("p_pampa", f"{result.p_pampa:.4f}")
+
+                    # 3D ligand visualization
+                    st.subheader("3D Ligand Structure")
+                    file_content = st.session_state.get("structure_file_content")
+                    file_ext = st.session_state.get("structure_file_ext")
+                    pdb_block = get_3d_structure_for_viewer(
+                        result.canonical_smiles,
+                        file_content=file_content,
+                        file_extension=file_ext,
+                    )
+                    if pdb_block and HAS_3D_VIEWER:
+                        st.caption("Interactive 3D view of the predicted ligand. Rotate with mouse drag, scroll to zoom.")
+                        render_ligand_3d(pdb_block, height=500, width=700)
+                    elif not HAS_3D_VIEWER:
+                        st.info("Install `stmol` and `py3Dmol` for 3D visualization: `pip install stmol py3Dmol`")
+                    else:
+                        st.warning("Could not generate 3D structure for this molecule.")
                 else:
                     st.error(result.error)
             else:
@@ -587,6 +728,26 @@ def render_mechbbb_prediction_page():
                     df_out = df.copy()
                     df_out["prob_BBB+"] = [r.prob for r in results]
                     df_out["BBB_class"] = [r.bbb_class for r in results]
+                    # Add standard error columns
+                    df_out["prob_std_error"] = [
+                        f"{r.prob_std_error:.6f}" if r.prob_std_error is not None else "" 
+                        for r in results
+                    ]
+                    df_out["prob_std_error_pct"] = [
+                        f"{r.prob_std_error * 100:.2f}%" if r.prob_std_error is not None else "" 
+                        for r in results
+                    ]
+                    # Add confidence interval bounds
+                    df_out["prob_CI_lower"] = [
+                        f"{max(0.0, r.prob - 2 * r.prob_std_error):.6f}" 
+                        if r.prob_std_error is not None else "" 
+                        for r in results
+                    ]
+                    df_out["prob_CI_upper"] = [
+                        f"{min(1.0, r.prob + 2 * r.prob_std_error):.6f}" 
+                        if r.prob_std_error is not None else "" 
+                        for r in results
+                    ]
                     df_out["p_efflux"] = [r.p_efflux for r in results]
                     df_out["p_influx"] = [r.p_influx for r in results]
                     df_out["p_pampa"] = [r.p_pampa for r in results]

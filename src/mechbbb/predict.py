@@ -29,6 +29,8 @@ class PredictResult:
     p_pampa: Optional[float]
     threshold: float
     error: str
+    prob_std_error: Optional[float] = None  # Standard error of the mean probability
+    prob_std_dev: Optional[float] = None  # Standard deviation of ensemble predictions
 
 
 def _compute_features_2058(smiles: str) -> Optional[np.ndarray]:
@@ -96,6 +98,8 @@ class MechBBBPredictor:
                 p_pampa=None,
                 threshold=self.threshold,
                 error="Invalid SMILES",
+                prob_std_error=None,
+                prob_std_dev=None,
             )
         feats_2058 = _compute_features_2058(canon)
         if feats_2058 is None:
@@ -110,6 +114,8 @@ class MechBBBPredictor:
                 p_pampa=None,
                 threshold=self.threshold,
                 error="Could not compute features",
+                prob_std_error=None,
+                prob_std_dev=None,
             )
         X1 = feats_2058.reshape(1, -1)
         p_efflux = float(self.stage1_efflux.predict(X1)[0])
@@ -122,6 +128,9 @@ class MechBBBPredictor:
             p = m.predict_proba(X2)[:, 1][0]
             probs.append(float(p))
         prob = float(np.mean(probs))
+        prob_std_dev = float(np.std(probs))
+        # Standard error of the mean: std_dev / sqrt(n)
+        prob_std_error = float(prob_std_dev / np.sqrt(len(probs)))
         bbb_class = "BBB+" if prob >= self.threshold else "BBB-"
         return PredictResult(
             is_valid=True,
@@ -134,6 +143,8 @@ class MechBBBPredictor:
             p_pampa=p_pampa,
             threshold=self.threshold,
             error="",
+            prob_std_error=prob_std_error,
+            prob_std_dev=prob_std_dev,
         )
 
 
